@@ -115,6 +115,12 @@ const useDOMRef = () => {
   return [DOMRef, setRef];
 };
 
+const callFnsInSequence =
+  (...fns) =>
+  (...args) => {
+    fns.forEach((fn) => fn && fn(...args));
+  };
+
 /**
  * custom hook for useClapState
  */
@@ -131,20 +137,21 @@ const useClapState = (initialState = INITIAL_STATE) => {
     }));
   }, [count, countTotal]);
 
-  // props collection for 'click'
-  const togglerProps = {
-    handleClick: updateClapState,
+  const getTogglerProps = ({ handleClick, ...otherProps }) => ({
+    handleClick: callFnsInSequence(updateClapState, handleClick),
     "aria-pressed": clapState.isClicked,
-  };
-  // props collection for 'count'
-  const counterProps = {
+    ...otherProps,
+  });
+
+  const getCounterProps = ({ ...otherProps }) => ({
     count: count,
     "aria-valuemax": MAXIMUM_USER_CLAP,
     "aria-valuemin": 0,
     "aria-valuenow": count,
-  };
+    ...otherProps,
+  });
 
-  return { clapState, updateClapState, togglerProps, counterProps };
+  return { clapState, updateClapState, getTogglerProps, getCounterProps };
 };
 
 /**
@@ -212,7 +219,7 @@ const CountTotal = ({ countTotal, setRef, ...restProps }) => {
 /** Usage */
 const Usage = () => {
   const [{ clapRef, clapCountRef, clapTotalRef }, setRef] = useDOMRef();
-  const { clapState, togglerProps, counterProps } = useClapState();
+  const { clapState, getTogglerProps, getCounterProps } = useClapState();
 
   const { count, isClicked } = clapState;
 
@@ -226,10 +233,22 @@ const Usage = () => {
     animationTimeline.replay();
   }, [count]);
 
+  const handleClick = () => {
+    console.log("CLICKED!!!");
+  };
+
   return (
-    <ClapContainer setRef={setRef} {...togglerProps} data-refkey="clapRef">
+    <ClapContainer
+      setRef={setRef}
+      {...getTogglerProps({ handleClick: handleClick, "aria-pressed": false })}
+      data-refkey="clapRef"
+    >
       <ClapIcon isClicked={isClicked} />
-      <ClapCount {...counterProps} setRef={setRef} data-refkey="clapCountRef" />
+      <ClapCount
+        {...getCounterProps()}
+        setRef={setRef}
+        data-refkey="clapCountRef"
+      />
       <CountTotal
         countTotal={clapState.countTotal}
         setRef={setRef}
